@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generador de Apuestas Euromillón</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .card {
+        background-color: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+          0 2px 4px -2px rgb(0 0 0 / 0.1);
+        transition: all 0.3s ease;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background-color: #4f46e5;
+        color: white;
+      }
+      .btn-primary:hover {
+        background-color: #4338ca;
+      }
+      .btn-secondary {
+        background-color: #e5e7eb;
+        color: #1f2937;
+      }
+      .btn-secondary:hover {
+        background-color: #d1d5db;
+      }
+      .number-circle {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.125rem;
+        color: #1e3a8a;
+        background-color: #e0e7ff;
+        border: 2px solid #c7d2fe;
+      }
+      .star-circle {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.125rem;
+        color: #9d5a00;
+        background-color: #ffedd5;
+        border: 2px solid #fed7aa;
+      }
+      /* Estilo para resaltar números fijos */
+      .bg-orange-100 {
+        background-color: #ffedd5; 
+        border-color: #fb923c;
+        color: #f97316;
+      }
+      /* Estilo para mostrar mensaje de error interno */
+      #filterError {
+        color: #dc2626; 
+        font-weight: 600; 
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        border: 1px solid #fca5a5;
+        background-color: #fef2f2;
+        border-radius: 0.5rem;
+      }
+
+      #toast {
+        position: fixed;
+        bottom: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 1rem 1.5rem;
+        background-color: #22c55e;
+        color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: bottom 0.5s ease-in-out;
+        z-index: 1000;
+        font-weight: 500;
+      }
+      #toast.show {
+        bottom: 20px;
+      }
+      /* Estilos para ocultar la leyenda de Chart.js por defecto */
+      .chart-container canvas {
+        width: 100% !important;
+        height: 200px !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md mx-auto">
+      <header class="text-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">
+          💹 Generador Euromillones
+        </h1>
+        <p class="text-gray-600 mt-1">
+          Analiza los últimos sorteos y obtén una combinación optimizada.
+        </p>
+      </header>
+
+      <main>
+        <div class="card p-6 mb-6">
+          <label
+              for="numSorteos"
+              class="block text-sm font-medium text-gray-700 mb-2"
+              >Número de sorteos a analizar:</label
+          >
+          <input
+              type="number"
+              id="numSorteos"
+              value="15"
+              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+          />
+
+          <label
+              class="block text-sm font-medium text-gray-700 mb-2"
+              >Criterio de Combinación:</label
+          >
+          <div class="flex space-x-4 mb-4">
+              <label class="inline-flex items-center">
+                  <input
+                      type="radio"
+                      name="analysisMode"
+                      value="most"
+                      checked
+                      class="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                  />
+                  <span class="ml-2 text-gray-700">Más Frecuentes</span>
+              </label>
+              <label class="inline-flex items-center">
+                  <input
+                      type="radio"
+                      name="analysisMode"
+                      value="least"
+                      class="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                  />
+                  <span class="ml-2 text-gray-700">Menos Frecuentes</span>
+              </label>
+          </div>
+
+          <label
+              for="fixedNumbers"
+              class="block text-sm font-medium text-gray-700 mb-2 border-t pt-4"
+              >Fijar Números (deben incluirse, ej: 4, 20):</label
+          >
+          <input
+              type="text"
+              id="fixedNumbers"
+              placeholder="Números fijos (máx 5)"
+              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+          />
+          <label
+              for="fixedStars"
+              class="block text-sm font-medium text-gray-700 mb-2"
+              >Fijar Estrellas (deben incluirse, ej: 1, 11):</label
+          >
+          <input
+              type="text"
+              id="fixedStars"
+              placeholder="Estrellas fijas (máx 2)"
+              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+          />
+
+          <label
+              for="excludeNumbers"
+              class="block text-sm font-medium text-gray-700 mb-2 border-t pt-4"
+              >Excluir Números (no se incluirán, ej: 13, 50):</label
+          >
+          <input
+              type="text"
+              id="excludeNumbers"
+              placeholder="Números a evitar (1-50)"
+              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+          />
+          <label
+              for="excludeStars"
+              class="block text-sm font-medium text-gray-700 mb-2"
+              >Excluir Estrellas (no se incluirán, ej: 7, 12):</label
+          >
+          <input
+              type="text"
+              id="excludeStars"
+              placeholder="Estrellas a evitar (1-12)"
+              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+          />
+          <button id="generateBtn" class="btn btn-primary w-full mt-4">
+              <i class="fas fa-sync-alt"></i>
+              <span>Generar Combinación</span>
+          </button>
+      </div>
+
+        <div id="resultsCard" class="card p-6 mb-6 hidden">
+          <div id="loader" class="text-center py-4">
+            <i class="fas fa-spinner fa-spin text-3xl text-indigo-500"></i>
+            <p class="mt-2 text-gray-600">Analizando datos...</p>
+          </div>
+          <div id="suggestionContent" class="hidden">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">
+                  Tu Combinación Sugerida
+              </h2>
+              <div
+                  class="flex justify-center items-center gap-2 flex-wrap mb-4"
+                  id="suggestedCombination"
+              >
+                  </div>
+
+              <div id="analysisSummary" class="text-sm text-gray-600 text-center mb-4 p-3 bg-indigo-50 rounded-lg">
+                  </div>
+
+              <div class="space-y-6">
+                <h3 class="text-md font-semibold text-gray-700 text-center border-t pt-4">Análisis de Frecuencia</h3>
+                <div class="chart-container">
+                  <canvas id="numbersChart"></canvas>
+                </div>
+                <div class="chart-container">
+                  <canvas id="starsChart"></canvas>
+                </div>
+              </div>
+              <p id="combinationText" class="hidden"></p>
+              <button id="copyBtn" class="btn btn-secondary w-full mt-6">
+                  <i class="far fa-copy"></i>
+                  <span>Copiar Combinación</span>
+              </button>
+          </div>
+
+        <div class="card">
+          <button
+            id="toggleSorteosBtn"
+            class="w-full text-left p-4 font-semibold text-gray-700 flex justify-between items-center"
+          >
+            <span>Ver Últimos Sorteos Analizados</span>
+            <i
+              id="toggleIcon"
+              class="fas fa-chevron-down transition-transform"
+            ></i>
+          </button>
+          <div
+            id="sorteosList"
+            class="hidden p-4 border-t border-gray-200 max-h-64 overflow-y-auto"
+          >
+            </div>
+        </div>
+      </main>
+
+      <div id="toast">¡Combinación copiada!</div>
+    </div>
+
+    <script>
+        // --- ELEMENTOS DEL DOM ---
+        const generateBtn = document.getElementById("generateBtn");
+        const copyBtn = document.getElementById("copyBtn");
+        const numSorteosInput = document.getElementById("numSorteos");
+        const suggestedCombinationDiv = document.getElementById(
+            "suggestedCombination"
+        );
+        const combinationText = document.getElementById("combinationText");
+        const sorteosListDiv = document.getElementById("sorteosList");
+        const toggleSorteosBtn = document.getElementById("toggleSorteosBtn");
+        const toggleIcon = document.getElementById("toggleIcon");
+        const resultsCard = document.getElementById("resultsCard");
+        const loader = document.getElementById("loader");
+        const suggestionContent = document.getElementById("suggestionContent");
+        const toast = document.getElementById("toast");
+        const analysisModeRadios = document.getElementsByName("analysisMode");
+        const analysisSummaryDiv = document.getElementById("analysisSummary"); 
+    
+        // Gráficos
+        const numbersChartCanvas = document.getElementById('numbersChart').getContext('2d');
+        const starsChartCanvas = document.getElementById('starsChart').getContext('2d');
+        let numbersChartInstance = null;
+        let starsChartInstance = null;
+    
+        // CAMPOS DE CONFIGURACIÓN
+        const excludeNumbersInput = document.getElementById("excludeNumbers");
+        const excludeStarsInput = document.getElementById("excludeStars");
+        const fixedNumbersInput = document.getElementById("fixedNumbers");
+        const fixedStarsInput = document.getElementById("fixedStars");
+    
+        // --- CONSTANTES Y ESTADO ---
+        const CSV_URL =
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vRy91wfK2JteoMi1ZOhGm0D1RKJfDTbEOj6rfnrB6-X7n2Q1nfFwBZBpcivHRdg3pSwxSQgLA3KpW7v/pub?output=csv";
+        const CACHE_KEY = 'euromillones_draws_cache';
+        const CACHE_TIMESTAMP_KEY = 'euromillones_draws_timestamp';
+        const CONFIG_KEY = 'euromillones_config'; 
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+    
+        let allDraws = [];
+    
+        // --- FUNCIONES DE PERSISTENCIA ---
+    
+        function saveConfig() {
+            const config = {
+                numSorteos: numSorteosInput.value,
+                analysisMode: document.querySelector('input[name="analysisMode"]:checked').value,
+                fixedNumbers: fixedNumbersInput.value,
+                fixedStars: fixedStarsInput.value,
+                excludeNumbers: excludeNumbersInput.value,
+                excludeStars: excludeStarsInput.value,
+            };
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        }
+    
+        function loadConfig() {
+            const configJSON = localStorage.getItem(CONFIG_KEY);
+            if (!configJSON) return;
+    
+            const config = JSON.parse(configJSON);
+    
+            // Aplicar valores guardados
+            numSorteosInput.value = config.numSorteos || 15;
+            fixedNumbersInput.value = config.fixedNumbers || '';
+            fixedStarsInput.value = config.fixedStars || '';
+            excludeNumbersInput.value = config.excludeNumbers || '';
+            excludeStarsInput.value = config.excludeStars || '';
+    
+            // Seleccionar el radio button correcto
+            const savedMode = config.analysisMode || 'most';
+            for (const radio of analysisModeRadios) {
+                radio.checked = radio.value === savedMode;
+            }
+        }
+    
+    
+        // --- FUNCIONES DE ANÁLISIS Y UTILIDAD ---
+    
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split("\n");
+            const headers = [
+                "Fecha",
+                "Num1",
+                "Num2",
+                "Num3",
+                "Num4",
+                "Num5",
+                "Estrella1",
+                "Estrella2",
+            ];
+            const data = lines.slice(1).filter(line => line.trim() !== '').map((line) => {
+                const values = line.split(",");
+                const row = {};
+                const relevantIndexes = [0, 1, 2, 3, 4, 5, 7, 8];
+                relevantIndexes.forEach((index, i) => {
+                    const key = headers[i];
+                    const value = values[index].trim();
+                    row[key] = isNaN(parseInt(value)) ? value : parseInt(value);
+                });
+                return row;
+            });
+            return data;
+        }
+    
+        function parseNumbers(input, maxSize = Infinity) {
+            if (!input) return [];
+            return input.split(',')
+                     .map(s => parseInt(s.trim()))
+                     .filter((n, index, self) => !isNaN(n) && n > 0 && self.indexOf(n) === index)
+                     .slice(0, maxSize);
+        }
+    
+        function analyzeDraws(numDraws, mode, fixedNumbers, fixedStars, excludedNumbers, excludedStars) {
+            const drawsToAnalyze = allDraws.slice(0, numDraws);
+            
+            if (drawsToAnalyze.length === 0) {
+                return { bestBet: { numbers: [], stars: [] }, analyzedDraws: [], analysisMode: mode, combinationScore: 0, numbersFrequency: {}, starsFrequency: {} };
+            }
+        
+            const numbers = drawsToAnalyze.flatMap((d) => [d.Num1, d.Num2, d.Num3, d.Num4, d.Num5,]);
+            const stars = drawsToAnalyze.flatMap((d) => [d.Estrella1, d.Estrella2]);
+        
+            const getFrequencies = (arr, maxRange) => {
+                const frequency = arr.reduce((acc, val) => {
+                    acc[val] = (acc[val] || 0) + 1;
+                    return acc;
+                }, {});
+                for (let i = 1; i <= maxRange; i++) {
+                    if (!frequency[i]) {
+                        frequency[i] = 0;
+                    }
+                }
+                return frequency;
+            };
+            
+            const numbersFrequencyMap = getFrequencies(numbers, 50);
+            const starsFrequencyMap = getFrequencies(stars, 12);
+        
+            let sortedNumbers = Object.entries(numbersFrequencyMap);
+            let sortedStars = Object.entries(starsFrequencyMap);
+            
+            const excludedAndFixedNumbers = new Set([...excludedNumbers, ...fixedNumbers]);
+            const excludedAndFixedStars = new Set([...excludedStars, ...fixedStars]);
+        
+            sortedNumbers = sortedNumbers.filter(([numStr]) => !excludedAndFixedNumbers.has(parseInt(numStr)));
+            sortedStars = sortedStars.filter(([starStr]) => !excludedAndFixedStars.has(parseInt(starStr)));
+            
+            sortedNumbers.sort(([, a], [, b]) => (mode === "most" ? b - a : a - b));
+            sortedStars.sort(([, a], [, b]) => (mode === "most" ? b - a : a - b));
+        
+            const neededNumbers = 5 - fixedNumbers.length;
+            const neededStars = 2 - fixedStars.length;
+        
+            let betNumbers = [...fixedNumbers];
+            let betStars = [...fixedStars];
+            
+            if (neededNumbers > 0) {
+                const commonNumbersList = sortedNumbers.slice(0, 10).map(([val]) => parseInt(val));
+                betNumbers.push(...getRandomSample(commonNumbersList, neededNumbers));
+            }
+            
+            if (neededStars > 0) {
+                const commonStarsList = sortedStars.slice(0, 4).map(([val]) => parseInt(val));
+                betStars.push(...getRandomSample(commonStarsList, neededStars));
+            }
+        
+            betNumbers.sort((a, b) => a - b);
+            betStars.sort((a, b) => a - b);
+        
+            const score = 
+                betNumbers.reduce((sum, num) => sum + numbersFrequencyMap[num], 0) +
+                betStars.reduce((sum, star) => sum + starsFrequencyMap[star], 0);
+        
+            return {
+                bestBet: { numbers: betNumbers, stars: betStars },
+                analyzedDraws: drawsToAnalyze,
+                analysisMode: mode, 
+                combinationScore: score,
+                numbersFrequency: numbersFrequencyMap, 
+                starsFrequency: starsFrequencyMap,
+            };
+        }
+    
+        const getRandomSample = (arr, size) => {
+            if (arr.length <= size) return arr;
+            const shuffled = arr.sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, size);
+        };
+    
+        // --- GESTIÓN DE CACHÉ Y DATOS ---
+    
+        function loadCache() {
+            const cachedCSV = localStorage.getItem(CACHE_KEY);
+            const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+            const currentTime = new Date().getTime();
+    
+            if (cachedCSV && cachedTimestamp && (currentTime - parseInt(cachedTimestamp) < CACHE_DURATION)) {
+                console.log("Datos cargados desde la caché.");
+                return cachedCSV;
+            }
+            return null;
+        }
+    
+        async function fetchAndCacheData() {
+            try {
+                console.log("Descargando nuevos datos...");
+                const response = await fetch(CSV_URL);
+                if (!response.ok) {
+                    throw new Error(`Error en la red: ${response.statusText}`);
+                }
+                const csvText = await response.text();
+                
+                localStorage.setItem(CACHE_KEY, csvText);
+                localStorage.setItem(CACHE_TIMESTAMP_KEY, new Date().getTime());
+                
+                return csvText;
+            } catch (error) {
+                console.error("Error en la descarga de datos:", error);
+                throw new Error(error.message);
+            }
+        }
+    
+        // --- FUNCIONES DE GRÁFICOS y UI ---
+        
+        function drawChart(ctx, title, frequencyMap, selectedValues, fixedValues, excludedValues, barColor) {
+            let chartInstance = ctx.canvas.id === 'numbersChart' ? numbersChartInstance : starsChartInstance;
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+    
+            const labels = Object.keys(frequencyMap).sort((a, b) => parseInt(a) - parseInt(b));
+            const data = labels.map(label => frequencyMap[label]);
+    
+            const isExcluded = (label) => excludedValues.includes(parseInt(label));
+    
+            const filteredLabels = labels.filter(label => !isExcluded(label));
+            const filteredData = filteredLabels.map(label => frequencyMap[label]);
+    
+            const getBarColor = (label) => {
+                const num = parseInt(label);
+                if (fixedValues.includes(num)) {
+                     return '#f97316'; // Naranja para fijos
+                } else if (selectedValues.includes(num)) { 
+                     return '#10b981'; // Verde para seleccionados por frecuencia
+                }
+                return barColor; // Color base
+            };
+    
+            const backgroundColors = filteredLabels.map(getBarColor);
+    
+            const chartData = {
+                labels: filteredLabels,
+                datasets: [{
+                    label: 'Frecuencia de Aparición',
+                    data: filteredData,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 1
+                }]
+            };
+    
+            const config = {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: title }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Veces Aparecido' } },
+                        x: { title: { display: true, text: 'Número / Estrella' } }
+                    }
+                }
+            };
+    
+            const newChartInstance = new Chart(ctx, config);
+            if (ctx.canvas.id === 'numbersChart') {
+                numbersChartInstance = newChartInstance;
+            } else {
+                starsChartInstance = newChartInstance;
+            }
+        }
+    
+        function displayError(message) {
+             resultsCard.innerHTML = `<p class="text-center text-red-600 p-4">❌ Error de Carga:</p><p class="text-center text-gray-700 p-2">${message}</p>`;
+             resultsCard.classList.remove("hidden");
+             loader.classList.add("hidden");
+             suggestionContent.classList.add("hidden");
+        }
+    
+        // --- MANEJADORES DE EVENTOS ---
+    
+        async function handleGenerate() {
+            saveConfig(); // GUARDAR CONFIGURACIÓN 
+    
+            resultsCard.classList.remove("hidden");
+            suggestionContent.classList.add("hidden");
+            loader.classList.remove("hidden");
+    
+            const numSorteos = parseInt(numSorteosInput.value);
+            if (isNaN(numSorteos) || numSorteos <= 0) {
+                alert("Por favor, introduce un número válido de sorteos.");
+                loader.classList.add("hidden");
+                return;
+            }
+    
+            let analysisMode = 'most';
+            for (const radio of analysisModeRadios) {
+                if (radio.checked) {
+                    analysisMode = radio.value;
+                    break;
+                }
+            }
+    
+            const fixedNumbers = parseNumbers(fixedNumbersInput.value, 5);
+            const fixedStars = parseNumbers(fixedStarsInput.value, 2);
+            const excludedNumbers = parseNumbers(excludeNumbersInput.value);
+            const excludedStars = parseNumbers(excludeStarsInput.value);
+    
+            const invalidFixedNumbers = fixedNumbers.filter(n => excludedNumbers.includes(n));
+            const invalidFixedStars = fixedStars.filter(s => excludedStars.includes(s));
+    
+            if (invalidFixedNumbers.length > 0 || invalidFixedStars.length > 0) {
+                 alert(`Error de configuración: Los números/estrellas fijas no pueden estar en la lista de excluidos.`);
+                 loader.classList.add("hidden");
+                 return;
+            }
+    
+            setTimeout(() => {
+                const analysisResult = analyzeDraws(numSorteos, analysisMode, fixedNumbers, fixedStars, excludedNumbers, excludedStars);
+    
+                if (analysisResult.analyzedDraws.length > 0) {
+                    updateUI(analysisResult, fixedNumbers, fixedStars, excludedNumbers, excludedStars);
+                } else {
+                    loader.classList.add("hidden");
+                    suggestionContent.classList.add("hidden");
+                }
+            }, 500);
+        }
+    
+        function updateUI(analysis, fixedNumbers, fixedStars, excludedNumbers, excludedStars) {
+            const { 
+                bestBet, analyzedDraws, analysisMode, combinationScore, 
+                numbersFrequency, starsFrequency 
+            } = analysis;
+            const numSorteos = analyzedDraws.length;
+    
+            // 1. Actualizar combinación sugerida
+            suggestedCombinationDiv.innerHTML = "";
+            bestBet.numbers.forEach((num) => {
+                const div = document.createElement("div");
+                div.className = "number-circle" + (fixedNumbers.includes(num) ? " bg-orange-100 border-orange-400 text-orange-800" : "");
+                div.textContent = num;
+                suggestedCombinationDiv.appendChild(div);
+            });
+            bestBet.stars.forEach((star) => {
+                const div = document.createElement("div");
+                div.className = "star-circle" + (fixedStars.includes(star) ? " bg-orange-100 border-orange-400 text-orange-800" : "");
+                div.innerHTML = `<i class="fas fa-star text-yellow-500 text-xs"></i> ${star}`;
+                suggestedCombinationDiv.appendChild(div);
+            });
+    
+            // Texto para copiar y resumen
+            const numbersText = bestBet.numbers.join(" ");
+            const starsText = bestBet.stars.join(" ");
+            combinationText.textContent = `Números: ${numbersText} | Estrellas: ${starsText}`;
+    
+            const modeText = analysisMode === 'most' ? 'Más Frecuentes' : 'Menos Frecuentes';
+            const scoreText = `La combinación ha aparecido un total de **${combinationScore}** veces en los sorteos analizados (Modo: **${modeText}**).`;
+            const filterText = 'Todos los sorteos disponibles'; 
+    
+            analysisSummaryDiv.innerHTML = `
+                <p>Se han analizado **${numSorteos}** sorteos (${filterText}).</p>
+                <p>Último sorteo analizado: **${analyzedDraws[0].Fecha}**.</p>
+                <p>${scoreText}</p>
+            `;
+    
+            // 2. DIBUJAR GRÁFICOS
+            drawChart(
+                numbersChartCanvas, 
+                'Frecuencia de Números (1-50)', 
+                numbersFrequency, 
+                bestBet.numbers, 
+                fixedNumbers, 
+                excludedNumbers, 
+                '#4f46e5'
+            );
+            drawChart(
+                starsChartCanvas, 
+                'Frecuencia de Estrellas (1-12)', 
+                starsFrequency, 
+                bestBet.stars, 
+                fixedStars, 
+                excludedStars, 
+                '#9d5a00'
+            );
+    
+            // 3. Actualizar lista de últimos sorteos
+            sorteosListDiv.innerHTML = "";
+            analyzedDraws.forEach((draw) => {
+                const numbers = [
+                    draw.Num1,
+                    draw.Num2,
+                    draw.Num3,
+                    draw.Num4,
+                    draw.Num5,
+                ].join(" ");
+                const stars = [draw.Estrella1, draw.Estrella2].join(" ");
+                const div = document.createElement("div");
+                div.className = "py-2 border-b border-gray-100 text-sm text-gray-600";
+                div.innerHTML = `<strong>📅 ${draw.Fecha}:</strong> Núm: ${numbers} | ⭐: ${stars}`;
+                sorteosListDiv.appendChild(div);
+            });
+    
+            // Ocultar loader y mostrar contenido
+            loader.classList.add("hidden");
+            suggestionContent.classList.remove("hidden");
+        }
+    
+        function showToast() {
+            toast.classList.add("show");
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 3000);
+        }
+    
+        function handleCopy() {
+            const textToCopy = combinationText.textContent;
+            navigator.clipboard
+                .writeText(textToCopy)
+                .then(() => {
+                    showToast();
+                })
+                .catch((err) => {
+                    console.error("Error al copiar: ", err);
+                    alert("No se pudo copiar la combinación.");
+                });
+        }
+    
+        function handleToggleSorteos() {
+            const isHidden = sorteosListDiv.classList.contains("hidden");
+            if (isHidden) {
+                sorteosListDiv.classList.remove("hidden");
+                toggleIcon.classList.add("rotate-180");
+            } else {
+                sorteosListDiv.classList.add("hidden");
+                toggleIcon.classList.remove("rotate-180");
+            }
+        }
+    
+        async function initializeApp() {
+            loadConfig(); // CARGAR CONFIGURACIÓN AL INICIO
+    
+            let csvText = loadCache();
+    
+            if (!csvText) {
+                try {
+                    // Si no hay caché o está expirada, intentar descargar
+                    csvText = await fetchAndCacheData();
+                } catch (error) {
+                    // Si la descarga falla (p. ej. error temporal de Google), intentar cargar el último caché
+                    csvText = localStorage.getItem(CACHE_KEY); 
+    
+                    if (csvText) {
+                        displayError(`⚠️ Error de conexión. Se usará la última versión guardada (${new Date(parseInt(localStorage.getItem(CACHE_TIMESTAMP_KEY))).toLocaleDateString()}).`);
+                    } else {
+                        // No hay caché y la descarga falló
+                        displayError(`No se pudieron cargar los datos de Euromillones. El servidor no responde y no hay datos guardados.`);
+                        return;
+                    }
+                }
+            }
+    
+            try {
+                allDraws = parseCSV(csvText);
+                handleGenerate();
+            } catch (e) {
+                displayError("Los datos cargados están corruptos. Inténtalo de nuevo más tarde.");
+            }
+        }
+    
+        // Asignar eventos
+        generateBtn.addEventListener("click", handleGenerate);
+        copyBtn.addEventListener("click", handleCopy);
+        toggleSorteosBtn.addEventListener("click", handleToggleSorteos);
+    
+        // Iniciar la aplicación
+        initializeApp();
+    </script>
+  </body>
+</html>
