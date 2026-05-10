@@ -296,6 +296,8 @@
                 color: "#6366f1",
                 bonusColor: "#f59e0b",
                 csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRy91wfK2JteoMi1ZOhGm0D1RKJfDTbEOj6rfnrB6-X7n2Q1nfFwBZBpcivHRdg3pSwxSQgLA3KpW7v/pub?output=csv",
+                minMain: 1,
+                minBonus: 1,
                 parseRow: (values) => ({
                     fecha: values[0],
                     numbers: values.slice(1, 6).map(v => parseInt(v)),
@@ -311,7 +313,9 @@
                 bonusLabel: "Reintegro",
                 color: "#10b981",
                 bonusColor: "#ef4444",
-                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTov1BuA0nkVGTS48arpPFkc9cG7B40Xi3BfY6iqcWTrMwCBg5b50-WwvnvaR6mxvFHbDBtYFKg5IsJ/pub?gid=1&single=true&output=csv", // Usando la misma como placeholder
+                minMain: 1,
+                minBonus: 0,
+                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTov1BuA0nkVGTS48arpPFkc9cG7B40Xi3BfY6iqcWTrMwCBg5b50-WwvnvaR6mxvFHbDBtYFKg5IsJ/pub?gid=1&single=true&output=csv", 
                 parseRow: (values) => ({
                     fecha: values[0],
                     numbers: values.slice(1, 7).map(v => parseInt(v)),
@@ -327,7 +331,9 @@
                 bonusLabel: "Reintegro",
                 color: "#ec4899",
                 bonusColor: "#f59e0b",
-                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQALTRaLDFfhXOAQmeONPqmFKm9yOiQ4W97rhWgR41BZ7czFsjK5YktD6fnETKHGB9YUnyQ4XBSbhZx/pub?gid=0&single=true&output=csv", // Placeholder
+                minMain: 1,
+                minBonus: 0,
+                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQALTRaLDFfhXOAQmeONPqmFKm9yOiQ4W97rhWgR41BZ7czFsjK5YktD6fnETKHGB9YUnyQ4XBSbhZx/pub?gid=0&single=true&output=csv", 
                 parseRow: (values) => ({
                     fecha: values[0],
                     numbers: values.slice(1, 7).map(v => parseInt(v)),
@@ -339,11 +345,13 @@
                 mainCount: 5,
                 mainRange: 54,
                 bonusCount: 1,
-                bonusRange: 10,
+                bonusRange: 9,
                 bonusLabel: "Número Clave",
                 color: "#7e22ce",
                 bonusColor: "#7c3aed",
-                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRR678qNlN_3p2dAxRG0LULS6EYmBbEmpfVhCEmsYky6eiuEH3o_mCRc4c2_EevPru_3BJfSV0QwpG8/pub?output=csv", // Placeholder
+                minMain: 1,
+                minBonus: 0,
+                csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRR678qNlN_3p2dAxRG0LULS6EYmBbEmpfVhCEmsYky6eiuEH3o_mCRc4c2_EevPru_3BJfSV0QwpG8/pub?output=csv", 
                 parseRow: (values) => ({
                     fecha: values[0],
                     numbers: values.slice(1, 6).map(v => parseInt(v)),
@@ -457,7 +465,9 @@
                 this.draws[this.currentGame] = lines
                     .map(line => {
                         const values = line.split(',');
-                        if (values.length < 8) return null;
+                        // Check if we have enough columns for this specific game
+                        const minRequired = game.name === "Euromillones" ? 9 : (game.mainCount + game.bonusCount + 1);
+                        if (values.length < minRequired) return null;
                         return game.parseRow(values);
                     })
                     .filter(d => d !== null);
@@ -471,8 +481,8 @@
                 if (relevantDraws.length === 0) return;
 
                 // Analysis
-                const mainFreq = this.getFrequency(relevantDraws.flatMap(d => d.numbers), game.mainRange);
-                const bonusFreq = this.getFrequency(relevantDraws.flatMap(d => d.bonus), game.bonusRange);
+                const mainFreq = this.getFrequency(relevantDraws.flatMap(d => d.numbers), game.mainRange, game.minMain);
+                const bonusFreq = this.getFrequency(relevantDraws.flatMap(d => d.bonus), game.bonusRange, game.minBonus);
 
                 // Filters
                 const fixed = this.parseInput(this.el.fixedNumbers.value);
@@ -485,9 +495,9 @@
                 this.updateUI(finalNumbers, finalBonus, mainFreq, bonusFreq, relevantDraws);
             }
 
-            getFrequency(arr, range) {
+            getFrequency(arr, max, min = 1) {
                 const freq = {};
-                for (let i = 1; i <= range; i++) freq[i] = 0;
+                for (let i = min; i <= max; i++) freq[i] = 0;
                 arr.forEach(num => { if (freq[num] !== undefined) freq[num]++; });
                 return freq;
             }
