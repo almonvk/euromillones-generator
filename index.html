@@ -147,6 +147,86 @@
             height: 250px;
             position: relative;
         }
+
+        /* Tooltip Styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Toggle Switch Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -183,10 +263,16 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-400 mb-2">Estrategia de selección</label>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-slate-400">Estrategia</label>
+                                <div class="tooltip">
+                                    <i class="fas fa-info-circle text-slate-500 text-xs"></i>
+                                    <span class="tooltiptext">"Más frecuentes" usa números que salen mucho. "Menos frecuentes" busca números que llevan tiempo sin aparecer.</span>
+                                </div>
+                            </div>
                             <div class="flex gap-2">
-                                <button onclick="app.setMode('most')" id="mode-most" class="flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all">Más Frecuentes</button>
-                                <button onclick="app.setMode('least')" id="mode-least" class="flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all">Menos Frecuentes</button>
+                                <button onclick="app.setMode('most')" id="mode-most" class="flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all text-xs">Más Frecuentes</button>
+                                <button onclick="app.setMode('least')" id="mode-least" class="flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all text-xs">Menos Frecuentes</button>
                             </div>
                         </div>
                     </div>
@@ -194,10 +280,27 @@
                     <!-- Right Column -->
                     <div class="space-y-4">
                         <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-slate-400">Filtros Inteligentes</label>
+                                <div class="tooltip">
+                                    <i class="fas fa-info-circle text-slate-500 text-xs"></i>
+                                    <span class="tooltiptext">Aplica reglas de probabilidad (Paridad, Suma, Altos/Bajos) para descartar combinaciones poco probables.</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between bg-slate-800/40 p-3 rounded-xl border border-white/5">
+                                <span class="text-xs text-slate-300">Activar filtrado estadístico</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="smartFilters" onchange="app.toggleSmartFilters(this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
                             <label class="block text-sm font-medium text-slate-400 mb-2">Números Fijos / Excluidos</label>
                             <div class="space-y-2">
-                                <input type="text" id="fixedNumbers" placeholder="Ej: 7, 14, 23 (Fijos)" class="custom-input w-full text-sm">
-                                <input type="text" id="excludeNumbers" placeholder="Ej: 1, 2, 3 (Excluir)" class="custom-input w-full text-sm">
+                                <input type="text" id="fixedNumbers" placeholder="Ej: 7, 14 (Fijos)" class="custom-input w-full text-xs">
+                                <input type="text" id="excludeNumbers" placeholder="Ej: 1, 2 (Excluir)" class="custom-input w-full text-xs">
                             </div>
                         </div>
                     </div>
@@ -364,6 +467,7 @@
             constructor() {
                 this.currentGame = 'euromillones';
                 this.mode = 'most';
+                this.smartFilters = false;
                 this.draws = {};
                 this.charts = { main: null, bonus: null };
                 
@@ -414,11 +518,15 @@
             setMode(mode) {
                 this.mode = mode;
                 document.getElementById('mode-most').className = mode === 'most' 
-                    ? 'flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all'
-                    : 'flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all';
+                    ? 'flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all text-xs'
+                    : 'flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all text-xs';
                 document.getElementById('mode-least').className = mode === 'least'
-                    ? 'flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all'
-                    : 'flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all';
+                    ? 'flex-1 py-2 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/20 text-indigo-300 font-medium transition-all text-xs'
+                    : 'flex-1 py-2 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 transition-all text-xs';
+            }
+
+            toggleSmartFilters(enabled) {
+                this.smartFilters = enabled;
             }
 
             async loadData() {
@@ -489,10 +597,60 @@
                 const excluded = this.parseInput(this.el.excludeNumbers.value);
 
                 // Selection logic
-                const finalNumbers = this.pickBest(mainFreq, game.mainCount, fixed, excluded, this.mode);
-                const finalBonus = this.pickBest(bonusFreq, game.bonusCount, [], excluded, this.mode); // simplified bonus logic
+                let finalNumbers, finalBonus;
+                let attempts = 0;
+                const maxAttempts = 500;
+
+                do {
+                    finalNumbers = this.pickBest(mainFreq, game.mainCount, fixed, excluded, this.mode);
+                    finalBonus = this.pickBest(bonusFreq, game.bonusCount, [], excluded, this.mode);
+                    attempts++;
+                } while (this.smartFilters && !this.validateCombination(finalNumbers, game) && attempts < maxAttempts);
 
                 this.updateUI(finalNumbers, finalBonus, mainFreq, bonusFreq, relevantDraws);
+            }
+
+            validateCombination(numbers, game) {
+                // 1. Sum Range Check
+                const sum = numbers.reduce((a, b) => a + b, 0);
+                let validSum = false;
+                if (game.mainCount === 5) { // Euromillones / El Gordo
+                    const min = game.name === "Euromillones" ? 95 : 100;
+                    const max = game.name === "Euromillones" ? 160 : 175;
+                    validSum = sum >= min && sum <= max;
+                } else if (game.mainCount === 6) { // Primitiva / Bonoloto
+                    validSum = sum >= 120 && sum <= 190;
+                }
+
+                // 2. Parity Check (Odd/Even)
+                const odds = numbers.filter(n => n % 2 !== 0).length;
+                let validParity = false;
+                if (game.mainCount === 5) {
+                    validParity = odds === 2 || odds === 3; // 2:3 or 3:2
+                } else if (game.mainCount === 6) {
+                    validParity = odds >= 2 && odds <= 4; // 2:4, 3:3, 4:2
+                }
+
+                // 3. High/Low Check
+                const mid = game.mainRange / 2;
+                const lows = numbers.filter(n => n <= mid).length;
+                let validHighLow = false;
+                if (game.mainCount === 5) {
+                    validHighLow = lows === 2 || lows === 3;
+                } else if (game.mainCount === 6) {
+                    validHighLow = lows >= 2 && lows <= 4;
+                }
+
+                // 4. Consecutive Check
+                let hasTripleConsecutive = false;
+                for (let i = 0; i < numbers.length - 2; i++) {
+                    if (numbers[i+1] === numbers[i]+1 && numbers[i+2] === numbers[i]+2) {
+                        hasTripleConsecutive = true;
+                        break;
+                    }
+                }
+
+                return validSum && validParity && validHighLow && !hasTripleConsecutive;
             }
 
             getFrequency(arr, max, min = 1) {
