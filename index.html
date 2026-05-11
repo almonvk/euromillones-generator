@@ -672,6 +672,22 @@
                     </h3>
                     <p>Si fijas números o estrellas, el algoritmo los usará obligatoriamente. Si excluyes números, jamás los verás en tus sugerencias. ¡Tú tienes el control final!</p>
                 </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-users text-xs text-indigo-400"></i>
+                        5. Sistema Multi-usuario
+                    </h3>
+                    <p>Pulsa en tu nombre (arriba a la izquierda) para crear nuevos perfiles o cambiar entre ellos. Cada usuario tiene sus propias estadísticas y apuestas guardadas de forma independiente.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-history text-xs text-indigo-400"></i>
+                        6. Control de Apuestas
+                    </h3>
+                    <p>Al generar una combinación, puedes indicar la <strong>fecha del sorteo</strong> y el <strong>dinero invertido</strong>. En la pestaña "Mis Apuestas" podrás ver tu balance total (Invertido vs Premios) y eliminar apuestas si te has equivocado.</p>
+                </section>
             </div>
 
             <button onclick="app.toggleHelp()" class="w-full mt-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all border border-white/5">
@@ -840,7 +856,21 @@
                 }
 
                 this.updateUserUI();
+                this.updateGameTabs(this.currentGame); // Fix: set initial visual state
                 this.loadData();
+            }
+
+            updateGameTabs(gameId) {
+                Object.keys(GAMES).forEach(id => {
+                    const btn = document.getElementById(`game-${id}`);
+                    if (btn) {
+                        btn.classList.toggle('opacity-100', id === gameId);
+                        btn.classList.toggle('bg-indigo-500/20', id === gameId);
+                        btn.classList.toggle('text-indigo-300', id === gameId);
+                        btn.classList.toggle('font-bold', id === gameId);
+                    }
+                });
+                document.documentElement.style.setProperty('--primary', GAMES[gameId].color);
             }
 
             updateUserUI() {
@@ -919,24 +949,11 @@
             }
 
             switchGame(gameId) {
-                if (this.currentGame === gameId) return;
+                if (this.currentGame === gameId && document.querySelector('.font-bold[id^="game-"]')) return;
                 
-                // Update game sub-tabs
-                Object.keys(GAMES).forEach(id => {
-                    const btn = document.getElementById(`game-${id}`);
-                    if (btn) {
-                        btn.classList.toggle('opacity-100', id === gameId);
-                        btn.classList.toggle('bg-indigo-500/20', id === gameId);
-                        btn.classList.toggle('text-indigo-300', id === gameId);
-                        btn.classList.toggle('font-bold', id === gameId);
-                    }
-                });
-                
+                this.updateGameTabs(gameId);
                 this.currentGame = gameId;
                 this.loadData();
-                
-                // Update theme color based on game
-                document.documentElement.style.setProperty('--primary', GAMES[gameId].color);
             }
 
             setMode(mode) {
