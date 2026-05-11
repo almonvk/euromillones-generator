@@ -335,12 +335,43 @@
                 scrollbar-width: none;  /* Firefox */
             }
         }
+
+        .user-badge {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-badge:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 w-full">
     <div class="max-w-2xl mx-auto w-full overflow-hidden">
         <!-- Header -->
         <header class="text-center mb-10 relative px-2">
+            <div class="absolute left-0 top-0">
+                <div id="currentUserDisplay" onclick="app.toggleUserModal()" class="user-badge text-indigo-300">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="currentUserName">Invitado</span>
+                </div>
+            </div>
             <button onclick="app.toggleHelp()" class="absolute right-0 top-0 text-slate-500 hover:text-indigo-400 transition-all p-2">
                 <i class="fas fa-question-circle text-xl"></i>
             </button>
@@ -354,14 +385,22 @@
         <!-- Tabs Navigation -->
         <div class="relative mb-8">
             <nav class="flex flex-nowrap justify-center bg-slate-900/50 p-1 rounded-2xl border border-white/5 overflow-x-auto custom-scrollbar no-scrollbar-mobile w-full">
-                <button onclick="app.switchGame('euromillones')" id="tab-euromillones" class="tab-btn active flex-shrink-0 md:flex-1 rounded-xl">Euromillones</button>
-                <button onclick="app.switchGame('primitiva')" id="tab-primitiva" class="tab-btn flex-shrink-0 md:flex-1 rounded-xl">La Primitiva</button>
-                <button onclick="app.switchGame('bonoloto')" id="tab-bonoloto" class="tab-btn flex-shrink-0 md:flex-1 rounded-xl">Bonoloto</button>
-                <button onclick="app.switchGame('elgordodelaprimitiva')" id="tab-elgordodelaprimitiva" class="tab-btn flex-shrink-0 md:flex-1 rounded-xl">El Gordo</button>
+                <button onclick="app.switchView('generator')" id="tab-generator" class="tab-btn active flex-1 rounded-xl">Generador</button>
+                <button onclick="app.switchView('stats')" id="tab-stats" class="tab-btn flex-1 rounded-xl">Mis Apuestas</button>
             </nav>
         </div>
 
-        <main class="space-y-6">
+        <!-- Game Selection (Only visible in Generator) -->
+        <div id="gameSelector" class="mb-8">
+            <nav class="flex flex-nowrap justify-center bg-slate-900/30 p-1 rounded-2xl border border-white/5 overflow-x-auto custom-scrollbar no-scrollbar-mobile w-full">
+                <button onclick="app.switchGame('euromillones')" id="game-euromillones" class="text-xs py-2 px-4 rounded-xl transition-all whitespace-nowrap opacity-60 hover:opacity-100 flex-1">Euromillones</button>
+                <button onclick="app.switchGame('primitiva')" id="game-primitiva" class="text-xs py-2 px-4 rounded-xl transition-all whitespace-nowrap opacity-60 hover:opacity-100 flex-1">La Primitiva</button>
+                <button onclick="app.switchGame('bonoloto')" id="game-bonoloto" class="text-xs py-2 px-4 rounded-xl transition-all whitespace-nowrap opacity-60 hover:opacity-100 flex-1">Bonoloto</button>
+                <button onclick="app.switchGame('elgordodelaprimitiva')" id="game-elgordodelaprimitiva" class="text-xs py-2 px-4 rounded-xl transition-all whitespace-nowrap opacity-60 hover:opacity-100 flex-1">El Gordo</button>
+            </nav>
+        </div>
+
+        <main id="generatorView" class="space-y-6">
             <!-- Configuration Card -->
             <div class="glass-card p-6 md:p-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -442,8 +481,12 @@
                         <div id="combinationDisplay" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-6">
                             <!-- Balls will be injected here -->
                         </div>
-                        <div class="flex justify-center">
-                            <button onclick="app.copyToClipboard()" class="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-6 rounded-full border border-white/5 transition-all flex items-center gap-2">
+                        <div class="flex flex-col sm:flex-row justify-center gap-3">
+                            <button onclick="app.registerBet()" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-6 rounded-full border border-indigo-400/30 transition-all flex items-center justify-center gap-2">
+                                <i class="fas fa-save"></i>
+                                <span>Marcar como apuesta</span>
+                            </button>
+                            <button onclick="app.copyToClipboard()" class="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-6 rounded-full border border-white/5 transition-all flex items-center justify-center gap-2">
                                 <i class="far fa-copy"></i>
                                 <span>Copiar para jugar</span>
                             </button>
@@ -491,13 +534,162 @@
             </div>
         </main>
 
+        <div id="statsView" class="hidden space-y-6 pb-20">
+            <div class="glass-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-indigo-400"></i>
+                    Balance de Apuestas
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Invertido</div>
+                        <div id="totalInverted" class="text-xl font-bold">0.00€</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Premios</div>
+                        <div id="totalPrizes" class="text-xl font-bold text-emerald-400">0.00€</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Balance</div>
+                        <div id="totalBalance" class="text-xl font-bold">0.00€</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase border-b border-white/5">
+                            <tr>
+                                <th class="px-4 py-3">Fecha</th>
+                                <th class="px-4 py-3">Juego</th>
+                                <th class="px-4 py-3">Combinación</th>
+                                <th class="px-4 py-3">Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="betsTableBody" class="divide-y divide-white/5">
+                            <!-- Bets injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <footer class="mt-12 text-center text-slate-500 text-sm pb-10">
             <p>&copy; 2026 Almon_Lotero. Juega con responsabilidad.</p>
         </footer>
+
+        <!-- Statistics View (Hidden by default) -->
+        <div id="statsView" class="hidden space-y-6 pb-20">
+            <div class="glass-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-indigo-400"></i>
+                    Balance de Apuestas
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Invertido</div>
+                        <div id="totalInverted" class="text-xl font-bold">0.00€</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Premios</div>
+                        <div id="totalPrizes" class="text-xl font-bold text-emerald-400">0.00€</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-slate-400 text-xs mb-1 uppercase tracking-wider">Balance</div>
+                        <div id="totalBalance" class="text-xl font-bold">0.00€</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase border-b border-white/5">
+                            <tr>
+                                <th class="px-4 py-3">Fecha</th>
+                                <th class="px-4 py-3">Juego</th>
+                                <th class="px-4 py-3">Combinación</th>
+                                <th class="px-4 py-3">Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="betsTableBody" class="divide-y divide-white/5">
+                            <!-- Bets injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Notification -->
     <div id="toast">¡Combinación copiada al portapapeles!</div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal-overlay">
+        <div class="modal-content glass-card max-w-lg w-full p-8 relative">
+            <button onclick="app.toggleHelp()" class="absolute right-4 top-4 text-slate-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fas fa-brain text-indigo-400"></i>
+                Guía de Almon_Lotero
+            </h2>
+            
+            <div class="space-y-6 text-sm text-slate-300 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-database text-xs text-indigo-400"></i>
+                        1. Análisis de Datos
+                    </h3>
+                    <p>La aplicación descarga automáticamente los resultados oficiales de los últimos sorteos. No inventa números al azar; estudia qué ha pasado realmente en el pasado.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-filter text-xs text-indigo-400"></i>
+                        2. Estrategias de Selección
+                    </h3>
+                    <ul class="list-disc ml-5 space-y-2">
+                        <li><strong>Más Frecuentes:</strong> Escoge los números "calientes" que han salido muchas veces recientemente.</li>
+                        <li><strong>Menos Frecuentes:</strong> Busca números que han salido poco, bajo la teoría de que "tienen que salir" pronto para compensar.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-xs text-indigo-400"></i>
+                        3. Filtros Inteligentes (El Secreto)
+                    </h3>
+                    <p class="mb-2">Esta opción descarta combinaciones que son estadísticamente "imposibles" o muy raras. Para que una combinación sea aceptada, debe cumplir:</p>
+                    <ul class="list-disc ml-5 space-y-1 text-slate-400">
+                        <li>Estar equilibrada entre números pares e impares.</li>
+                        <li>Tener una mezcla de números altos y bajos.</li>
+                        <li>Que su suma total esté en la zona media (ni muy baja ni muy alta).</li>
+                        <li>No tener más de 2 números seguidos.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-user-check text-xs text-indigo-400"></i>
+                        4. Tu Decisión Manda
+                    </h3>
+                    <p>Si fijas números o estrellas, el algoritmo los usará obligatoriamente. Si excluyes números, jamás los verás en tus sugerencias. ¡Tú tienes el control final!</p>
+                </section>
+
+                <section>
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="fas fa-history text-xs text-indigo-400"></i>
+                        5. Registro de Apuestas
+                    </h3>
+                    <p>Al hacer clic en "Marcar como apuesta", la combinación se guarda en tu perfil. En la pestaña "Mis Apuestas" podrás ver tu histórico, lo que has invertido y tus aciertos una vez se celebren los sorteos.</p>
+                </section>
+            </div>
+
+            <button onclick="app.toggleHelp()" class="w-full mt-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all border border-white/5">
+                Entendido, ¡a jugar!
+            </button>
+        </div>
+    </div>
 
     <!-- Help Modal -->
     <div id="helpModal" class="modal-overlay">
@@ -571,6 +763,7 @@
                 bonusLabel: "Estrellas",
                 color: "#6366f1",
                 bonusColor: "#f59e0b",
+                cost: 2.50,
                 csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRy91wfK2JteoMi1ZOhGm0D1RKJfDTbEOj6rfnrB6-X7n2Q1nfFwBZBpcivHRdg3pSwxSQgLA3KpW7v/pub?output=csv",
                 minMain: 1,
                 minBonus: 1,
@@ -589,6 +782,7 @@
                 bonusLabel: "Reintegro",
                 color: "#10b981",
                 bonusColor: "#ef4444",
+                cost: 1.00,
                 minMain: 1,
                 minBonus: 0,
                 csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTov1BuA0nkVGTS48arpPFkc9cG7B40Xi3BfY6iqcWTrMwCBg5b50-WwvnvaR6mxvFHbDBtYFKg5IsJ/pub?gid=1&single=true&output=csv", 
@@ -607,6 +801,7 @@
                 bonusLabel: "Reintegro",
                 color: "#ec4899",
                 bonusColor: "#f59e0b",
+                cost: 0.50,
                 minMain: 1,
                 minBonus: 0,
                 csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQALTRaLDFfhXOAQmeONPqmFKm9yOiQ4W97rhWgR41BZ7czFsjK5YktD6fnETKHGB9YUnyQ4XBSbhZx/pub?gid=0&single=true&output=csv", 
@@ -625,6 +820,7 @@
                 bonusLabel: "Número Clave",
                 color: "#7e22ce",
                 bonusColor: "#7c3aed",
+                cost: 1.50,
                 minMain: 1,
                 minBonus: 0,
                 csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRR678qNlN_3p2dAxRG0LULS6EYmBbEmpfVhCEmsYky6eiuEH3o_mCRc4c2_EevPru_3BJfSV0QwpG8/pub?output=csv", 
@@ -639,11 +835,18 @@
         class LottoApp {
             constructor() {
                 this.currentGame = 'euromillones';
+                this.currentView = 'generator';
                 this.mode = 'most';
                 this.smartFilters = false;
                 this.draws = {};
                 this.charts = { main: null, bonus: null };
                 
+                // User & Bets state
+                this.users = JSON.parse(localStorage.getItem('lotto_users')) || [{ id: 'default', name: 'Invitado' }];
+                this.currentUser = localStorage.getItem('lotto_current_user') || 'default';
+                this.bets = JSON.parse(localStorage.getItem('lotto_bets')) || [];
+                this.currentGenerated = null;
+
                 this.init();
             }
 
@@ -663,7 +866,19 @@
                     statSorteos: document.getElementById('statSorteos'),
                     historyList: document.getElementById('historyList'),
                     historyIcon: document.getElementById('historyIcon'),
-                    toast: document.getElementById('toast')
+                    toast: document.getElementById('toast'),
+                    // Multi-user & Stats
+                    currentUserName: document.getElementById('currentUserName'),
+                    userModal: document.getElementById('userModal'),
+                    userList: document.getElementById('userList'),
+                    newUserName: document.getElementById('newUserName'),
+                    generatorView: document.getElementById('generatorView'),
+                    statsView: document.getElementById('statsView'),
+                    gameSelector: document.getElementById('gameSelector'),
+                    betsTableBody: document.getElementById('betsTableBody'),
+                    totalInverted: document.getElementById('totalInverted'),
+                    totalPrizes: document.getElementById('totalPrizes'),
+                    totalBalance: document.getElementById('totalBalance')
                 };
 
                 // Sync range slider
@@ -671,15 +886,85 @@
                     this.el.numSorteosVal.textContent = e.target.value;
                 });
 
-                // Load initial data
+                this.updateUserUI();
                 this.loadData();
+            }
+
+            updateUserUI() {
+                const user = this.users.find(u => u.id === this.currentUser) || this.users[0];
+                this.el.currentUserName.textContent = user.name;
+                
+                // Refresh user list in modal
+                this.el.userList.innerHTML = this.users.map(u => `
+                    <div onclick="app.switchUser('${u.id}')" class="flex items-center justify-between p-3 rounded-xl border ${u.id === this.currentUser ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'} cursor-pointer hover:bg-white/10 transition-all">
+                        <span class="font-medium">${u.name}</span>
+                        ${u.id === this.currentUser ? '<i class="fas fa-check text-indigo-400"></i>' : ''}
+                    </div>
+                `).join('');
+            }
+
+            toggleUserModal() {
+                this.el.userModal.classList.toggle('active');
+            }
+
+            createUser() {
+                const name = this.el.newUserName.value.trim();
+                if (!name) return;
+                
+                const newUser = {
+                    id: 'user_' + Date.now(),
+                    name: name
+                };
+                
+                this.users.push(newUser);
+                this.currentUser = newUser.id;
+                this.saveUsers();
+                this.updateUserUI();
+                this.el.newUserName.value = '';
+                this.toggleUserModal();
+                this.renderStats(); // Refresh stats for new user
+            }
+
+            switchUser(id) {
+                this.currentUser = id;
+                this.saveUsers();
+                this.updateUserUI();
+                this.toggleUserModal();
+                this.renderStats();
+            }
+
+            saveUsers() {
+                localStorage.setItem('lotto_users', JSON.stringify(this.users));
+                localStorage.setItem('lotto_current_user', this.currentUser);
+            }
+
+            switchView(viewId) {
+                this.currentView = viewId;
+                document.getElementById('tab-generator').classList.toggle('active', viewId === 'generator');
+                document.getElementById('tab-stats').classList.toggle('active', viewId === 'stats');
+                
+                this.el.generatorView.classList.toggle('hidden', viewId !== 'generator');
+                this.el.statsView.classList.toggle('hidden', viewId !== 'stats');
+                this.el.gameSelector.classList.toggle('hidden', viewId !== 'generator');
+
+                if (viewId === 'stats') {
+                    this.renderStats();
+                }
             }
 
             switchGame(gameId) {
                 if (this.currentGame === gameId) return;
                 
-                document.getElementById(`tab-${this.currentGame}`).classList.remove('active');
-                document.getElementById(`tab-${gameId}`).classList.add('active');
+                // Update game sub-tabs
+                Object.keys(GAMES).forEach(id => {
+                    const btn = document.getElementById(`game-${id}`);
+                    if (btn) {
+                        btn.classList.toggle('opacity-100', id === gameId);
+                        btn.classList.toggle('bg-indigo-500/20', id === gameId);
+                        btn.classList.toggle('text-indigo-300', id === gameId);
+                        btn.classList.toggle('font-bold', id === gameId);
+                    }
+                });
                 
                 this.currentGame = gameId;
                 this.loadData();
@@ -779,7 +1064,87 @@
                     attempts++;
                 } while (this.smartFilters && !this.validateCombination(finalNumbers, game) && attempts < maxAttempts);
 
+                this.currentGenerated = {
+                    nums: finalNumbers,
+                    bonus: finalBonus,
+                    game: this.currentGame,
+                    timestamp: Date.now()
+                };
+
                 this.updateUI(finalNumbers, finalBonus, mainFreq, bonusFreq, relevantDraws);
+            }
+
+            registerBet() {
+                if (!this.currentGenerated) return;
+                
+                const bet = {
+                    id: 'bet_' + Date.now(),
+                    userId: this.currentUser,
+                    game: this.currentGenerated.game,
+                    nums: this.currentGenerated.nums,
+                    bonus: this.currentGenerated.bonus,
+                    timestamp: this.currentGenerated.timestamp,
+                    drawDate: null, 
+                    cost: GAMES[this.currentGenerated.game].cost,
+                    prize: 0,
+                    checked: false
+                };
+
+                this.bets.push(bet);
+                this.saveBets();
+                this.showToast('¡Apuesta registrada con éxito!');
+            }
+
+            saveBets() {
+                localStorage.setItem('lotto_bets', JSON.stringify(this.bets));
+            }
+
+            renderStats() {
+                const userBets = this.bets.filter(b => b.userId === this.currentUser);
+                let totalInverted = 0;
+                let totalPrizes = 0;
+
+                userBets.sort((a, b) => b.timestamp - a.timestamp);
+
+                this.el.betsTableBody.innerHTML = userBets.map(bet => {
+                    totalInverted += bet.cost;
+                    totalPrizes += (bet.prize || 0);
+                    
+                    const dateStr = new Date(bet.timestamp).toLocaleDateString();
+                    const combination = `
+                        <div class="flex gap-1 flex-wrap">
+                            ${bet.nums.map(n => `<span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center border border-indigo-500/30">${n}</span>`).join('')}
+                            ${bet.bonus.map(b => `<span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 text-[10px] flex items-center justify-center border border-amber-500/30">${b}</span>`).join('')}
+                        </div>
+                    `;
+
+                    return `
+                        <tr>
+                            <td class="px-4 py-3 text-slate-400">${dateStr}</td>
+                            <td class="px-4 py-3 font-medium">${GAMES[bet.game].name}</td>
+                            <td class="px-4 py-3">${combination}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full bg-slate-800 text-[10px] text-slate-500">Pendiente</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                if (userBets.length === 0) {
+                    this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-slate-500 italic">No tienes apuestas registradas.</td></tr>';
+                }
+
+                this.el.totalInverted.textContent = totalInverted.toFixed(2) + '€';
+                this.el.totalPrizes.textContent = totalPrizes.toFixed(2) + '€';
+                const balance = totalPrizes - totalInverted;
+                this.el.totalBalance.textContent = balance.toFixed(2) + '€';
+                this.el.totalBalance.className = `text-xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            }
+
+            showToast(msg) {
+                this.el.toast.textContent = msg;
+                this.el.toast.classList.add('show');
+                setTimeout(() => this.el.toast.classList.remove('show'), 3000);
             }
 
             validateCombination(numbers, game) {
@@ -856,6 +1221,37 @@
             }
 
             updateUI(nums, bonus, mainFreq, bonusFreq, draws) {
+                const game = GAMES[this.currentGame];
+                
+                this.el.gameTitle.textContent = game.name;
+                this.el.bonusName.textContent = game.bonusLabel;
+                this.el.statSorteos.textContent = draws.length;
+                
+                // Balls
+                this.el.combinationDisplay.innerHTML = '';
+                nums.forEach(n => {
+                    const ball = document.createElement('div');
+                    ball.className = 'number-ball';
+                    ball.textContent = n;
+                    this.el.combinationDisplay.appendChild(ball);
+                });
+                
+                bonus.forEach(b => {
+                    const ball = document.createElement('div');
+                    ball.className = 'bonus-ball';
+                    ball.textContent = b;
+                    this.el.combinationDisplay.appendChild(ball);
+                });
+
+                // Show Content
+                this.el.loader.classList.add('hidden');
+                this.el.resultContent.classList.remove('hidden');
+
+                this.renderCharts(mainFreq, bonusFreq, game);
+                this.renderHistory(draws);
+            }
+
+            renderCharts(mainFreq, bonusFreq, game) {
                 const game = GAMES[this.currentGame];
                 
                 this.el.gameTitle.textContent = game.name;
