@@ -531,8 +531,9 @@
 
             <div id="historyList" class="hidden glass-card p-6 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
                 <!-- History items -->
-            </div>
-             <div id="statsView" class="hidden space-y-6 pb-20">
+        </main>
+
+        <div id="statsView" class="hidden space-y-6 pb-20">
             <div class="glass-card p-6 md:p-8">
                 <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
                     <i class="fas fa-chart-line text-indigo-400"></i>
@@ -1010,7 +1011,10 @@
             }
 
             registerBet() {
-                if (!this.currentGenerated) return;
+                if (!this.currentGenerated) {
+                    this.showToast('Error: No hay combinación para registrar');
+                    return;
+                }
                 
                 const bet = {
                     id: 'bet_' + Date.now(),
@@ -1027,6 +1031,7 @@
 
                 this.bets.push(bet);
                 this.saveBets();
+                this.renderStats(); // Update stats in background
                 this.showToast('¡Apuesta registrada con éxito!');
             }
 
