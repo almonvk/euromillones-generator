@@ -561,8 +561,9 @@
                             <tr>
                                 <th class="px-4 py-3">Fecha</th>
                                 <th class="px-4 py-3">Juego</th>
-                                <th class="px-4 py-3">Combinación</th>
+                                 <th class="px-4 py-3">Combinación</th>
                                 <th class="px-4 py-3">Resultado</th>
+                                <th class="px-4 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="betsTableBody" class="divide-y divide-white/5">
@@ -1081,23 +1082,28 @@
                         `;
 
                         return `
-                            <tr>
-                                <td class="px-4 py-3 text-slate-400">${dateStr}</td>
+                            <tr class="hover:bg-white/[0.02] transition-colors">
+                                <td class="px-4 py-3 text-slate-400 text-xs">${dateStr}</td>
                                 <td class="px-4 py-3 font-medium">${gameName}</td>
                                 <td class="px-4 py-3">${combination}</td>
                                 <td class="px-4 py-3">
                                     <span class="px-2 py-1 rounded-full bg-slate-800 text-[10px] text-slate-500">Pendiente</span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <button onclick="app.deleteBet('${bet.id}')" class="text-slate-600 hover:text-rose-400 transition-all p-2">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                    </button>
                                 </td>
                             </tr>
                         `;
                     }).join('');
 
                     if (userBets.length === 0) {
-                        this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-slate-500 italic">No tienes apuestas registradas.</td></tr>';
+                        this.el.betsTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-10 text-center text-slate-500 italic">No tienes apuestas registradas.</td></tr>';
                     }
                 } catch (err) {
                     console.error("Error rendering stats table:", err);
-                    this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-rose-400 italic">Error al mostrar el historial.</td></tr>';
+                    this.el.betsTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-10 text-center text-rose-400 italic">Error al mostrar el historial.</td></tr>';
                 }
 
                 if (this.el.totalInverted) this.el.totalInverted.textContent = totalInverted.toFixed(2) + '€';
@@ -1108,6 +1114,14 @@
                     this.el.totalBalance.textContent = balance.toFixed(2) + '€';
                     this.el.totalBalance.className = `text-xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
                 }
+            }
+
+            deleteBet(id) {
+                if (!confirm('¿Estás seguro de que quieres eliminar esta apuesta?')) return;
+                this.bets = this.bets.filter(b => b.id !== id);
+                this.saveBets();
+                this.renderStats();
+                this.showToast('Apuesta eliminada', 'rose');
             }
 
             showToast(msg, type = 'success') {
