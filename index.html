@@ -748,20 +748,36 @@
 
         class LottoApp {
             constructor() {
-                this.currentGame = 'euromillones';
-                this.currentView = 'generator';
-                this.mode = 'most';
-                this.smartFilters = false;
-                this.draws = {};
-                this.charts = { main: null, bonus: null };
-                
-                // User & Bets state
-                this.users = JSON.parse(localStorage.getItem('lotto_users')) || [{ id: 'default', name: 'Invitado' }];
-                this.currentUser = localStorage.getItem('lotto_current_user') || 'default';
-                this.bets = JSON.parse(localStorage.getItem('lotto_bets')) || [];
-                this.currentGenerated = null;
+                try {
+                    this.currentGame = 'euromillones';
+                    this.currentView = 'generator';
+                    this.mode = 'most';
+                    this.smartFilters = false;
+                    this.draws = {};
+                    this.charts = { main: null, bonus: null };
+                    
+                    // User & Bets state with safe parsing
+                    try {
+                        const savedUsers = localStorage.getItem('lotto_users');
+                        this.users = savedUsers ? JSON.parse(savedUsers) : [{ id: 'default', name: 'Invitado' }];
+                    } catch (e) {
+                        this.users = [{ id: 'default', name: 'Invitado' }];
+                    }
 
-                this.init();
+                    this.currentUser = localStorage.getItem('lotto_current_user') || 'default';
+
+                    try {
+                        const savedBets = localStorage.getItem('lotto_bets');
+                        this.bets = savedBets ? JSON.parse(savedBets) : [];
+                    } catch (e) {
+                        this.bets = [];
+                    }
+
+                    this.currentGenerated = null;
+                    this.init();
+                } catch (err) {
+                    console.error("LottoApp Constructor Error:", err);
+                }
             }
 
             init() {
@@ -795,10 +811,15 @@
                     totalBalance: document.getElementById('totalBalance')
                 };
 
-                // Sync range slider
-                this.el.numSorteos.addEventListener('input', (e) => {
-                    this.el.numSorteosVal.textContent = e.target.value;
-                });
+                // Safety check: ensure critical elements exist
+                if (!this.el.numSorteos || !this.el.numSorteosVal) {
+                    console.warn("Critical UI elements not found. Initialization may be incomplete.");
+                } else {
+                    // Sync range slider
+                    this.el.numSorteos.addEventListener('input', (e) => {
+                        this.el.numSorteosVal.textContent = e.target.value;
+                    });
+                }
 
                 this.updateUserUI();
                 this.loadData();
@@ -1187,7 +1208,14 @@
             }
 
             renderChart(id, chartKey, freqMap, highlights, color) {
-                const ctx = document.getElementById(id).getContext('2d');
+                if (typeof Chart === 'undefined') {
+                    console.warn("Chart.js not loaded. Skipping chart render.");
+                    return;
+                }
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
                 const labels = Object.keys(freqMap);
                 const data = Object.values(freqMap);
                 
@@ -1244,7 +1272,14 @@
             }
         }
 
-        const app = new LottoApp();
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                window.app = new LottoApp();
+            } catch (err) {
+                console.error("Critical Initialization Error:", err);
+            }
+        });
     </script>
 </body>
 </html>
