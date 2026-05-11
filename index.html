@@ -769,7 +769,8 @@
 
                     try {
                         const savedBets = localStorage.getItem('lotto_bets');
-                        this.bets = savedBets ? JSON.parse(savedBets) : [];
+                        this.bets = (savedBets && savedBets !== 'null') ? JSON.parse(savedBets) : [];
+                        if (!Array.isArray(this.bets)) this.bets = [];
                     } catch (e) {
                         this.bets = [];
                     }
@@ -875,16 +876,29 @@
             }
 
             switchView(viewId) {
-                this.currentView = viewId;
-                document.getElementById('tab-generator').classList.toggle('active', viewId === 'generator');
-                document.getElementById('tab-stats').classList.toggle('active', viewId === 'stats');
-                
-                this.el.generatorView.classList.toggle('hidden', viewId !== 'generator');
-                this.el.statsView.classList.toggle('hidden', viewId !== 'stats');
-                this.el.gameSelector.classList.toggle('hidden', viewId !== 'generator');
+                try {
+                    this.currentView = viewId;
+                    
+                    // Re-fetch if null (fallback)
+                    if (!this.el.generatorView) this.el.generatorView = document.getElementById('generatorView');
+                    if (!this.el.statsView) this.el.statsView = document.getElementById('statsView');
+                    if (!this.el.gameSelector) this.el.gameSelector = document.getElementById('gameSelector');
 
-                if (viewId === 'stats') {
-                    this.renderStats();
+                    const tabGen = document.getElementById('tab-generator');
+                    const tabStats = document.getElementById('tab-stats');
+                    
+                    if (tabGen) tabGen.classList.toggle('active', viewId === 'generator');
+                    if (tabStats) tabStats.classList.toggle('active', viewId === 'stats');
+                    
+                    if (this.el.generatorView) this.el.generatorView.classList.toggle('hidden', viewId !== 'generator');
+                    if (this.el.statsView) this.el.statsView.classList.toggle('hidden', viewId !== 'stats');
+                    if (this.el.gameSelector) this.el.gameSelector.classList.toggle('hidden', viewId !== 'generator');
+
+                    if (viewId === 'stats') {
+                        this.renderStats();
+                    }
+                } catch (err) {
+                    console.error("Error switching view:", err);
                 }
             }
 
@@ -1012,7 +1026,7 @@
 
             registerBet() {
                 if (!this.currentGenerated) {
-                    this.showToast('Error: No hay combinación para registrar');
+                    this.showToast('Error: No hay combinación para registrar', 'rose');
                     return;
                 }
                 
@@ -1022,17 +1036,20 @@
                     game: this.currentGenerated.game,
                     nums: this.currentGenerated.nums,
                     bonus: this.currentGenerated.bonus,
-                    timestamp: this.currentGenerated.timestamp,
+                    timestamp: Date.now(),
                     drawDate: null, 
-                    cost: GAMES[this.currentGenerated.game].cost,
+                    cost: GAMES[this.currentGenerated.game] ? GAMES[this.currentGenerated.game].cost : 0,
                     prize: 0,
                     checked: false
                 };
 
                 this.bets.push(bet);
                 this.saveBets();
-                this.renderStats(); // Update stats in background
-                this.showToast('¡Apuesta registrada con éxito!');
+                this.renderStats();
+                
+                const user = this.users.find(u => u.id === this.currentUser);
+                const userBetsCount = this.bets.filter(b => b.userId === this.currentUser).length;
+                this.showToast(`Apuesta guardada para ${user ? user.name : 'Invitado'} (Total: ${userBetsCount})`);
             }
 
             saveBets() {
@@ -1040,49 +1057,62 @@
             }
 
             renderStats() {
+                if (!this.el.betsTableBody) return;
+
                 const userBets = this.bets.filter(b => b.userId === this.currentUser);
                 let totalInverted = 0;
                 let totalPrizes = 0;
 
                 userBets.sort((a, b) => b.timestamp - a.timestamp);
 
-                this.el.betsTableBody.innerHTML = userBets.map(bet => {
-                    totalInverted += bet.cost;
-                    totalPrizes += (bet.prize || 0);
-                    
-                    const dateStr = new Date(bet.timestamp).toLocaleDateString();
-                    const combination = `
-                        <div class="flex gap-1 flex-wrap">
-                            ${bet.nums.map(n => `<span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center border border-indigo-500/30">${n}</span>`).join('')}
-                            ${bet.bonus.map(b => `<span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 text-[10px] flex items-center justify-center border border-amber-500/30">${b}</span>`).join('')}
-                        </div>
-                    `;
+                try {
+                    this.el.betsTableBody.innerHTML = userBets.map(bet => {
+                        totalInverted += (bet.cost || 0);
+                        totalPrizes += (bet.prize || 0);
+                        
+                        const dateStr = new Date(bet.timestamp).toLocaleDateString();
+                        const gameName = (GAMES[bet.game] && GAMES[bet.game].name) ? GAMES[bet.game].name : 'Desconocido';
+                        
+                        const combination = `
+                            <div class="flex gap-1 flex-wrap">
+                                ${(bet.nums || []).map(n => `<span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center border border-indigo-500/30">${n}</span>`).join('')}
+                                ${(bet.bonus || []).map(b => `<span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 text-[10px] flex items-center justify-center border border-amber-500/30">${b}</span>`).join('')}
+                            </div>
+                        `;
 
-                    return `
-                        <tr>
-                            <td class="px-4 py-3 text-slate-400">${dateStr}</td>
-                            <td class="px-4 py-3 font-medium">${GAMES[bet.game].name}</td>
-                            <td class="px-4 py-3">${combination}</td>
-                            <td class="px-4 py-3">
-                                <span class="px-2 py-1 rounded-full bg-slate-800 text-[10px] text-slate-500">Pendiente</span>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                        return `
+                            <tr>
+                                <td class="px-4 py-3 text-slate-400">${dateStr}</td>
+                                <td class="px-4 py-3 font-medium">${gameName}</td>
+                                <td class="px-4 py-3">${combination}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded-full bg-slate-800 text-[10px] text-slate-500">Pendiente</span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
 
-                if (userBets.length === 0) {
-                    this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-slate-500 italic">No tienes apuestas registradas.</td></tr>';
+                    if (userBets.length === 0) {
+                        this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-slate-500 italic">No tienes apuestas registradas.</td></tr>';
+                    }
+                } catch (err) {
+                    console.error("Error rendering stats table:", err);
+                    this.el.betsTableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-rose-400 italic">Error al mostrar el historial.</td></tr>';
                 }
 
-                this.el.totalInverted.textContent = totalInverted.toFixed(2) + '€';
-                this.el.totalPrizes.textContent = totalPrizes.toFixed(2) + '€';
-                const balance = totalPrizes - totalInverted;
-                this.el.totalBalance.textContent = balance.toFixed(2) + '€';
-                this.el.totalBalance.className = `text-xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+                if (this.el.totalInverted) this.el.totalInverted.textContent = totalInverted.toFixed(2) + '€';
+                if (this.el.totalPrizes) this.el.totalPrizes.textContent = totalPrizes.toFixed(2) + '€';
+                
+                if (this.el.totalBalance) {
+                    const balance = totalPrizes - totalInverted;
+                    this.el.totalBalance.textContent = balance.toFixed(2) + '€';
+                    this.el.totalBalance.className = `text-xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+                }
             }
 
-            showToast(msg) {
+            showToast(msg, type = 'success') {
                 this.el.toast.textContent = msg;
+                this.el.toast.style.background = type === 'success' ? '#10b981' : '#ef4444';
                 this.el.toast.classList.add('show');
                 setTimeout(() => this.el.toast.classList.remove('show'), 3000);
             }
